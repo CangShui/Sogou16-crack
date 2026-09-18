@@ -1,0 +1,36 @@
+﻿=== total connection rows analyzed: 9209 ===
+
+=== ANY row whose process is Sogou-related? ===
+Sogou-process public connections: 0
+
+=== distinct processes that made public conns ===
+SystemSettings               4108
+svchost                      2528
+msedgewebview2               1223
+System/Idle                  964
+MpDefenderCoreService        195
+Widgets                      62
+explorer                     52
+MicrosoftEdgeUpdate          36
+msedge                       35
+taskhostw                    4
+backgroundTaskHost           1
+pid13156                     1
+
+=== time coverage ===
+run1: 2026-09-18 00:34:41 .. 2026-09-18 00:52:00
+run2: 2026-09-18 04:56:09 .. 2026-09-18 07:31:27
+
+=== UDP audit: Sogou processes with any UDP sockets (netstat -p UDP) ===
+Sogou PIDs: 3960,8712
+UDP sockets owned by Sogou PIDs: 0
+
+=== current Sogou processes ===
+
+ProcessId Name               ExecutablePath                                          
+--------- ----               --------------                                          
+     3960 SGTool.exe         C:\Program Files (x86)\SogouInput\16.8.0.4914\SGTool.exe
+     8712 SogouImeBroker.exe C:\Windows\SysWOW64\IME\SogouPY\SogouImeBroker.exe      
+
+
+

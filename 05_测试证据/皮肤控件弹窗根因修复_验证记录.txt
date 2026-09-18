@@ -1,0 +1,39 @@
+﻿# 注：本记录为历史验证记录。最新哈希见 04_校验/安装包SHA256.txt。
+#     安装包 Sogou16-crack-cangshui.exe = f4281ba9029d1f4b7a7aca7ab678b0cbe37e0edce70d72a166f196cb5fe03ec6
+#     工具   搜狗皮肤词库工具.exe       = 0ee4e83977b6553b1666c7dc2ea450fa5206ce5930b7034d7e036f907389c49e
+# “皮肤组件升级”弹窗根因修复 验证记录
+# 日期: 2026-09-16  VM 192.168.1.114
+
+## 现象
+装/应用动态皮肤时弹“皮肤组件升级 / 此皮肤需要新版皮肤控件支持”，
+且动态皮肤无法正常应用。
+
+## 定位过程
+1. 弹窗文案（皮肤控件升级/动态皮肤/需要新版）确认在 SGTool.exe；
+2. 注册表开关 Popup_DisableSkinBubble / EnableImePop 等实测无效；
+3. 对比官方安装包：$_16_\SogouFlash_2.3.0.2553.scpf（13.5MB，zip；
+   内含 SogouFlash.dll/64、SogouFlash.exe、SogouFlashDll*.dll、hwsignature.dll、
+   ziplib*.dll 及 install.ini: folder=SogouFlash, version=2.3.0.2553, uid=1014）；
+4. 官方安装器用 SogouComMgr.exe 注册该组件到
+   Components\SogouFlash\<版本>\ + Components\ComponentConfig.ini；
+5. 本精简包只装了 Components\SGDictation —— **漏装 SogouFlash 组件**，即根因。
+
+## 修复（根因修复，无任何常驻进程）
+- payload 增加 Components\SogouFlash\**（21 文件）+ Components\ComponentConfig.ini；
+- scrub5 去公网字面量：patch 16 文件，verify 0 残留；
+- 32 位 PE 注入 .nblk 网络钩子：SogouFlash.exe / SogouFlashDll.dll /
+  sogouflashdll.dll / hwsignature.dll（64 位 DLL 依既有约定仅 scrub）；
+- 删除此前的常驻守护“搜狗提示拦截.exe”及其自启键。
+
+## 验证
+- 纯文件拷贝部署（带 ComponentConfig.ini）→ 触发 skinRenderUpdate：弹窗 **无** ✅
+- 完整安装包静默安装（EXIT=0）→ 组件 21 文件到位，Tools 下无守护：
+  触发 skinRenderUpdate + 切换动态皮肤：弹窗 **无** ✅
+- 皮肤切换写盘正常：SkinRecent.ini lastuse/lastunuse 正确更新
+  （实测 13:01 连续切换 【ZX】极简黑→【雨欣】→三体→绽放 均落盘）
+- 残留检查：无“搜狗提示拦截.exe”进程、无 SogouNoticeGuard 自启键 ✅
+
+## 产物
+安装包 SHA256 = 10f921c9e720ee8723a23d6510a8c8d9e6630a3bfb1d457e661d2974bd784309（147,530,556 字节）
+图形工具      = 19276942efffbac996b8fbb12f26104fdbd2151f96c267f7c88a3b64c9050d10
+SogouCloud    = 2e81602cef9515b04b7e9c2a9bb8ba49de94e6528962c3d154f1e2f658914bbd（合法退出桩）

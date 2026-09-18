@@ -1,0 +1,60 @@
+﻿2026-09-18 00:49:06 ORCH START
+σ╖▓µ╖╗σèáτ¡¢ΘÇëσÖ¿πÇé
+σ╖▓µ╖╗σèáτ¡¢ΘÇëσÖ¿πÇé
+
+Φ«░σ╜òτ¿ïσ║ÅσÅéµò░:
+    Φ«░σ╜òτ¿ïσ║ÅσÉìτº░:        PktMon
+    µùÑσ┐ùµ¿íσ╝Å:       σñÜµûçΣ╗╢
+    µùÑσ┐ùµûçΣ╗╢:           C:\Windows\Temp\netaudit\cap%d.etl
+    µ£ÇσñºµûçΣ╗╢σñºσ░Å:      256 MB
+    σ╖▓τö¿σåàσ¡ÿ:        128 MB
+
+µö╢Θ¢åτÜäµò░µì«:
+    µò░µì«σîàΦ«íµò░σÖ¿∩╝îµò░µì«σîàµìòΦÄ╖
+
+µìòΦÄ╖τ▒╗σ₧ï:
+    µëÇµ£ëµò░µì«σîà
+
+τ¢æΦºåτÜäτ╗äΣ╗╢:
+    σà¿Θâ¿
+
+µò░µì«σîàτ¡¢ΘÇëσÖ¿:
+     # σÉìτº░   σìÅΦ««        
+     - --   --        
+     1 SYNs TCP (SYN) 
+     2 UDPs UDP       
+2026-09-18 00:49:06 PKTMON STARTED
+2026-09-18 00:51:50 sample 200 etlBytes=16777216
+2026-09-18 00:59:11 sample 120 etlBytes=85678
+2026-09-18 01:09:21 sample 240 etlBytes=85678
+2026-09-18 01:19:30 sample 360 etlBytes=85678
+2026-09-18 01:29:38 sample 480 etlBytes=85678
+2026-09-18 01:39:52 sample 600 etlBytes=85678
+2026-09-18 01:50:03 sample 720 etlBytes=85678
+2026-09-18 02:00:11 sample 840 etlBytes=85678
+2026-09-18 02:10:18 sample 960 etlBytes=85678
+2026-09-18 02:20:24 sample 1080 etlBytes=85678
+2026-09-18 02:30:31 sample 1200 etlBytes=85678
+2026-09-18 02:40:41 sample 1320 etlBytes=85678
+2026-09-18 02:50:47 sample 1440 etlBytes=85678
+2026-09-18 03:00:53 sample 1560 etlBytes=85678
+2026-09-18 03:11:00 sample 1680 etlBytes=85678
+2026-09-18 03:21:06 sample 1800 etlBytes=85678
+2026-09-18 03:31:12 sample 1920 etlBytes=85678
+2026-09-18 03:41:22 sample 2040 etlBytes=85678
+2026-09-18 03:51:28 sample 2160 etlBytes=85678
+2026-09-18 04:01:34 sample 2280 etlBytes=85678
+2026-09-18 04:11:40 sample 2400 etlBytes=85678
+2026-09-18 04:21:46 sample 2520 etlBytes=85678
+2026-09-18 04:31:53 sample 2640 etlBytes=85678
+2026-09-18 04:42:01 sample 2760 etlBytes=85678
+pktmon : µò░µì«σîàτ¢æΦºåσÖ¿µ▓íµ£ëΦ┐ÉΦíîπÇé
+At C:\Windows\Temp\netaudit\orchestrator.ps1:60 char:1
++ pktmon stop 2>&1 | Out-File $status -Append -Encoding UTF8
++ ~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (µò░µì«σîàτ¢æΦºåσÖ¿µ▓íµ£ëΦ┐ÉΦíîπÇé:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+2026-09-18 04:49:23 PKTMON STOPPED
+ETL cap1.etl 85678
+2026-09-18 04:49:26 ORCH DONE

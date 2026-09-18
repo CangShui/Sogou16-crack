@@ -1,0 +1,5 @@
+﻿Sogou PIDs: 3612
+=== Sogou TCP sockets (detail) ===
+=== who connected 111.27.123.78 / 172.67.169.115 ===
+111.27.123.78 <- (gone)
+172.67.169.115 <- (gone)

@@ -1,0 +1,17 @@
+[00:00] hung=False alive=True
+[00:30] hung=False alive=True
+[01:00] hung=False alive=True
+[01:30] hung=False alive=True
+[02:00] hung=False alive=True
+[02:30] hung=False alive=True
+[03:00] hung=False alive=True
+[03:30] hung=False alive=True
+[04:00] hung=False alive=True
+[04:30] hung=False alive=True
+[05:00] hung=False alive=True
+[05:30] hung=False alive=True
+[06:00] hung=False alive=True
+[06:30] hung=False alive=True
+[07:00] hung=False alive=True
+[07:30] hung=False alive=True
+RESULT: hangs = 0

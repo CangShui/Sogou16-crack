@@ -1,0 +1,33 @@
+﻿# 注：本记录为历史验证记录。最新哈希见 04_校验/安装包SHA256.txt。
+#     安装包 Sogou16-crack-cangshui.exe = f4281ba9029d1f4b7a7aca7ab678b0cbe37e0edce70d72a166f196cb5fe03ec6
+#     工具   搜狗皮肤词库工具.exe       = 0ee4e83977b6553b1666c7dc2ea450fa5206ce5930b7034d7e036f907389c49e
+# 皮肤安装/切换确认框自动点击 验证记录
+# 日期: 2026-09-16  VM 192.168.1.114
+
+## 现象
+用户点“安装皮肤/切换选中皮肤”后，搜狗弹出的“确定要安装皮肤‘X’吗？”确认框
+出现在工具主窗口【下层】被挡住；用户看不到/点不到“确定”，皮肤实际未注册或未切换。
+
+## 根因
+SGTool.exe 是本工具的子进程，其对话框受 Windows 前台锁限制，不会自动抢到最前，
+于是被拥有前台焦点的本工具主窗口盖住。
+
+## 修复
+Tools\搜狗皮肤词库工具.exe：
+- 发起 `skinreg -install` 后启动后台 watchdog（25s 内每 300ms）：
+  EnumWindows 找标题含“安装皮肤/皮肤安装/确定要安装”的窗口
+  → SetWindowPos(TOPMOST→NOTOPMOST) + SetForegroundWindow 提到最前
+  → EnumChildWindows 找“确定”按钮 → SendMessageTimeout(BM_CLICK) 自动确认；
+- watchdog 回调只在包初始化时创建一次，避免 syscall.NewCallback 回调槽泄漏。
+
+## 实测（不手动点任何弹窗）
+- 选中“晴天-清新柠檬” → 点“切换选中皮肤” → 12 秒后：
+    SkinRecent.ini: 晴天-清新柠檬 lastuse=2026-09-16 09:17:36 lastunuse=1970 (当前激活)
+                    【ZX】极简黑   lastunuse=2026-09-16 09:17:24 (被取消激活)
+  状态栏: “已切换皮肤：晴天-清新柠檬（确认框已自动点“确定”）”
+  弹窗列表: 无残留
+- 工具内存: 51.9 → 52.4 MB（修复前同操作会涨到 ~90MB，因回调槽泄漏）
+
+## 产物
+Tools\搜狗皮肤词库工具.exe SHA256 = 19276942efffbac996b8fbb12f26104fdbd2151f96c267f7c88a3b64c9050d10
+安装包 SHA256                    = 45c34c9e71fb98c5043bce5de1e53e0f78bfa8fe894b6dc9366e1226dd5583fa

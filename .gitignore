@@ -1,0 +1,19 @@
+# 大文件（超过 GitHub 单文件 100MB 限制，或为官方原版，不入库）
+#
+# 1) 官方底包（223MB，官方版权，请自行从搜狗官网下载）
+#    期望 SHA256: cd889fa70a0bec77a5bb4f5c1fdff7a42674a29cc1fb4fc4cf5f2b645ef18fc2
+#    下载后放到本目录，文件名保持 pinyin_guanwang_16.8.exe
+01_原始底包/*.exe
+01_原始底包/*.EXE
+
+# 2) 构建产物安装包（147MB，已作为 Release 附件发布，不入库）
+#    请到 Releases 页面下载 Sogou16-crack-cangshui.exe
+03_安装包/*.exe
+03_安装包/*.EXE
+
+# 临时/中间产物
+work16/
+*.~upx
+__pycache__/
+*.pyc
+dist/

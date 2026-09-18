@@ -1,0 +1,38 @@
+﻿now 2026-09-18 19:00:45
+=== pid 3300 identity ===
+
+
+Name        : CryptSvc
+DisplayName : Cryptographic Services
+PathName    : C:\WINDOWS\system32\svchost.exe -k NetworkService -p
+
+
+
+
+=== Sogou processes ===
+
+ProcessId Name               ExecutablePath                                          
+--------- ----               --------------                                          
+     3960 SGTool.exe         C:\Program Files (x86)\SogouInput\16.8.0.4914\SGTool.exe
+     8712 SogouImeBroker.exe C:\Windows\SysWOW64\IME\SogouPY\SogouImeBroker.exe      
+
+
+
+=== Sogou TCP sockets ===
+count=0
+
+=== Sogou UDP endpoints ===
+count=0
+=== Sogou modules in pid 3300 ===
+none
+=== hosts sogou entries ===
+=== firewall profiles ===
+
+Name    Enabled
+----    -------
+Domain    False
+Private   False
+Public    False
+
+
+

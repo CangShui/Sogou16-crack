@@ -1,0 +1,7 @@
+﻿f4281ba9029d1f4b7a7aca7ab678b0cbe37e0edce70d72a166f196cb5fe03ec6  Sogou16-crack-cangshui/03_安装包/Sogou16-crack-cangshui.exe
+# 大小: 147544434 字节
+# 内嵌 Tools\搜狗皮肤词库工具.exe = 0ee4e83977b6553b1666c7dc2ea450fa5206ce5930b7034d7e036f907389c49e
+#     （cangshui 版：UI 增加作者博客 https://cangshui.net 可点击链接；大小 1936896 字节）
+# 内嵌 16.8.0.4914\SogouCloud.exe = 2e81602cef9515b04b7e9c2a9bb8ba49de94e6528962c3d154f1e2f658914bbd (合法退出桩)
+# 内嵌 Components\SogouFlash\*   = 官方新版皮肤控件 2.3.0.2553（已 scrub + 32位 .nblk 断网注入）
+# 内嵌 Components\ComponentConfig.ini = 组件注册记录

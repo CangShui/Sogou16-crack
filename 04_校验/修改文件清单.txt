@@ -1,0 +1,142 @@
+﻿# 修改文件清单（相对官方底包）
+#
+# 修改类型：
+#   INJECT  = scrub 去公网字面量 + 注入 .nblk 断网钩子
+#   SCRUB   = 仅 scrub 去公网字面量
+#   STUB    = 替换为 1KB 合法空 EXE（入口即 ExitProcess(0)），进程秒退
+#   NEW     = 本版本新增文件
+
+文件                       类型   官方SHA256(前18) 修改后SHA256(前18)
+----------------------------------------------------------------------
+SGTool.exe                   INJECT   b5ee006eb4b983f60e 4d98df18fbff34fea1
+SGDownload.exe               INJECT   a16e262552d8441d56 bce742aada1bf0d487
+SGCurlHelper.dll             INJECT   76700a39fb49b2e7af 7cc927787952f112ae
+networkbase.dll              INJECT   ceb56278972965cafa 106c9b8c20cb730763
+shiply.dll                   INJECT   5a1cd09effe6d98ea4 d00cb8a66e66aa4176
+
+SogouCloud.exe               STUB     da2acfc237e1e84cda 2e81602cef9515b04b
+   说明：把 SogouCloud 替换为 1KB 合法空 EXE（仅调用 ExitProcess(0)，
+         固定基址、无 ASLR）。
+         原因：SogouCloud 由 IME 核心按需拉起且多实例常驻，白耗内存/CPU；
+         但直接删除会让 IME 反复尝试启动。用合法退出桩后，被拉起即正常退出。
+         （不可用“入口点裸 ret 桩”：对 EXE 入口是非法返回 → 每次被拉起都崩溃，
+           WER 累积 AppCrash_SogouCloud，WerFault 反复启动导致鼠标周期性忙碌。
+           该已否决方案见 02_构建脚本/stub_cloud_ret_rejected.py。）
+
+----------------------------------------------------------------------
+# 本版本新增文件（官方底包中不存在）
+#   Tools\搜狗皮肤词库工具.exe  = 自研离线皮肤/词库管理图形工具（纯 Win32，单文件）
+#   ime_user_register.ps1 / offline_hardening.ps1 / offline_hardening_user.ps1 = 离线硬化脚本
+#
+# Tools\搜狗皮肤词库工具.exe   NEW     -                  0ee4e83977b6553b
+#   说明：离线皮肤/词库管理；修复“打开一段时间自动未响应”；修正 scdreg 调用参数；
+#         切换皮肤改用官方激活通道；界面含离线下载地址 + 作者博客两个可点击链接。
+#   最终 SHA256 = 0ee4e83977b6553b1666c7dc2ea450fa5206ce5930b7034d7e036f907389c49e
+#   （已从 03_安装包 解包核对一致；大小 1,936,896 字节）
+
+----------------------------------------------------------------------
+# 【图形工具卡死修复说明】
+# 症状：工具打开后不点任何按钮，过一会儿窗口标题变“(未响应)”。
+# 根因：Go 进入 Win32 消息循环前未调用 runtime.LockOSThread()。Go 调度器在
+#       GC/调度时会把消息循环 goroutine 迁移到其它 OS 线程，而 Windows 要求
+#       窗口消息泵必须运行在创建窗口的线程上，迁移后窗口收不到消息 → 未响应。
+# 修复：
+#   1) main() 增加 runtime.LockOSThread()；
+#   2) 所有磁盘 IO / 子进程调用移出 UI 线程（后台 goroutine + PostMessage 回投）；
+#   3) GetMessageW 返回 -1 时重试；
+#   4) UI 线程与后台线程的数据交接改为互斥锁保护的全局变量，避免把堆指针
+#      经 PostMessage 传递导致 GC use-after-free。
+# 验证：见 05_测试证据/ 与 07_验收报告.md（8 分钟无交互 + 按钮交互均 0 卡死）。
+
+----------------------------------------------------------------------
+# 【卸载残留 / 重装失败 修复说明】
+# 症状：
+#   1) 卸载后 C:\Windows\SysWOW64\{SogouPY,SogouTSF}.ime、
+#      C:\Windows\SysWOW64\IME\SogouPY、C:\Program Files (x86)\SogouInput 清不掉；
+#   2) 之后重装报“无法打开要写入的文件 SogouImeBroker.exe”。
+# 根因：
+#   a) 旧卸载段根本没删系统 IME 文件与 SysWOW64\IME\SogouPY；
+#   b) 32 位卸载器写 "C:\Windows\System32" 被 WOW64 重定向到 SysWOW64，
+#      所以真正的 System32\*.ime 从未被删；
+#   c) SogouImeBroker.exe 由 HKLM\...\Run 自启并常驻，锁住文件 → NSIS File 覆盖失败弹框。
+# 修复（sogou16-crack-cangshui.nsi）：
+#   - 安装段开头：删 Run 项 + taskkill 全部搜狗进程；
+#   - 安装/卸载的系统 IME 文件写入/删除均用 ${DisableX64FSRedirection} 定位真 System32；
+#   - 写文件改“写 $TEMP → Delete /REBOOTOK → Rename /REBOOTOK”，被占用也不弹框；
+#   - 卸载段：杀进程 + 删 Run/RunOnce + 删 System32/SysWOW64 ime + 删 SysWOW64\IME\SogouPY
+#     + 删注册表(含 HKCU) + RMDir /r /REBOOTOK 程序目录与用户数据 + 删快捷方式 + SetRebootFlag。
+# 验证：干净快照 → 安装 → 卸载(重启后 SysWOW64/程序目录/快捷方式全清) → 重装 EXIT=0 无弹框。
+
+----------------------------------------------------------------------
+# 【词库 / 皮肤 修复说明】
+# 词库：
+#   - scdreg 不能带 `-line 0 -border` 前缀（实测返回 1 且不注册），必须用
+#     `SGTool.exe --appid=scdreg -add "<scel>" -s` 再 `--appid=scdreg -update`；
+#   - 不要手动把同一个 .scel 复制到“程序 scd 目录”和“用户 scd 目录”，
+#     否则同一词库在列表里出现两条 —— 只交给 scdreg 处理，不再手抄。
+# 皮肤：
+#   - `skinRenderUpdate -skinname=` 单独调用不会真正切换（SkinRecent.ini 不更新）；
+#   - 官方“使用皮肤”的实际效果 = `skinreg -install "<已装皮肤.ssf>"`（会把
+#     lastuse/usecnt 写进 SkinRecent.ini）；故“切换选中皮肤”改为对已装 .ssf
+#     重新执行 install（会弹官方确认框），随后再触发一次 skinRenderUpdate。
+
+----------------------------------------------------------------------
+# 【提示弹窗拦截 + 忙碌光标 修复】
+#
+# 问题A：安装后鼠标会“间隔进入加载/忙碌状态”。
+# 根因：SogouCloud.exe 的桩用的是入口点裸 `ret`(31 C0 C3)。对 EXE 入口而言
+#       ret 会返回到栈上无意义的地址 → 进程每次被 IME 核心拉起都崩溃。
+#       证据：C:\ProgramData\Microsoft\Windows\WER\ReportArchive 下累计 157+ 个
+#             AppCrash_SogouCloud.exe 报告，事件日志 1000 每 20~40 秒一次，
+#             WerFault 反复启动 → 鼠标周期性忙碌。
+# 修复：改用 1KB 合法空 EXE（导入 KERNEL32!ExitProcess，入口 push 0 ; call
+#       [ExitProcess] ; int3；固定 ImageBase、清 ASLR 位）。被拉起即正常退出。
+#       效果：崩溃报告数停止增长（实测 5 小时零新增），SogouCloud 手动运行 EXIT=0。
+# 产物：02_构建脚本/mkstubexe.py（可复现 2e81602cef9515b04b...）
+#
+# 问题B：Sogou 会弹“皮肤组件升级 / 此皮肤需要新版皮肤控件支持”，且动态皮肤
+#       （.ssf 里声明了 flash_plugin_minver / html_plugin_minver）无法正常应用。
+# 根因：官方安装包含有皮肤控件组件包 $_16_\SogouFlash_2.3.0.2553.scpf（13.5MB），
+#       官方安装器会用 SogouComMgr.exe 把它注册成
+#       Components\SogouFlash\<版本>\ 并写 Components\ComponentConfig.ini；
+#       本精简包当初只装了 Components\SGDictation，**漏了 SogouFlash 组件** →
+#       SGTool 判定“缺新版皮肤控件” → 弹窗 + 动态皮肤不可用。
+# 修复（根因修复，不需要任何常驻进程）：
+#       - 把官方 Components\SogouFlash\ 全套（21 个文件，含 2.3.0.2553 子目录）
+#         与 Components\ComponentConfig.ini 一并打进安装包（NSI 已有 File /r
+#         "$INSTDIR\Components" 覆盖）；
+#       - 新组件按既有断网策略处理：scrub5 去公网字面量（verify 0 残留）+
+#         对 32 位 PE 注入 .nblk 网络钩子（SogouFlash.exe / SogouFlashDll.dll /
+#         sogouflashdll.dll / hwsignature.dll；64 位 DLL 同既有约定仅靠 scrub）;
+#       - 不使用任何常驻守护进程。
+# 实测：干净安装后触发 skinRenderUpdate + 切换动态皮肤，**弹窗不再出现**；
+#       皮肤切换写盘正常（SkinRecent.ini lastuse/lastunuse 正确更新）。
+
+----------------------------------------------------------------------
+# 【皮肤安装/切换确认框自动点击】
+#
+# 问题：点“安装皮肤/切换选中皮肤”后，搜狗会弹“确定要安装皮肤‘X’吗？”确认框，
+#       但该确认框常出现在工具主窗口【下层】被挡住；用户以为没反应、没点“确定”，
+#       结果皮肤从未真正注册/切换（SkinRecent.ini 不更新）。
+# 根因：SGTool 是子进程，其对话框受 Windows 前台锁影响，不会自动抢到最前。
+# 修复（Tools\搜狗皮肤词库工具.exe）：
+#   - 发起 install 后启动后台 watchdog（25 秒内每 300ms）：
+#       EnumWindows 找到标题含“安装皮肤/皮肤安装/确定要安装”的窗口 →
+#       先 SetWindowPos(TOPMOST→NOTOPMOST)+SetForegroundWindow 提到最前，
+#       再 EnumChildWindows 找到“确定”按钮 → SendMessageTimeout(BM_CLICK) 自动确认；
+#   - watchdog 的回调只在包初始化时创建一次（避免 NewCallback 回调槽泄漏导致内存上涨）。
+# 结果：用户点“切换选中皮肤”后无需再管任何弹窗，皮肤直接生效。
+#   实测：SkinRecent.ini 中目标皮肤 lastuse=当前时间、lastunuse=1970（即当前激活），
+#         旧皮肤被置 lastunuse；工具内存稳定 ~52MB。
+# 产物哈希：0ee4e83977b6553b1666c7dc2ea450fa5206ce5930b7034d7e036f907389c49e
+
+----------------------------------------------------------------------
+# 【从根因消除“皮肤控件升级”弹窗】
+#
+# 结论：不靠拦截、不加常驻进程。弹窗根因是**缺官方皮肤控件组件**；
+#       装回官方组件后弹窗自然消失，动态皮肤也能正常应用。
+# 变更：
+#   1) payload 增加 Components\SogouFlash\**（官方 2.3.0.2553）与 ComponentConfig.ini；
+#   2) 该组件已 scrub（0 残留公网字面量）+ 32 位 PE 注入 .nblk 断网钩子；
+#   3) 不部署任何守护进程；NSI 仅保留一句升级清理（删除历史版本可能残留的守护 exe 与 Run 键）。
+# 安装包：147,544,434 字节，SHA256 f4281ba9029d1f4b7a7aca7ab678b0cbe37e0edce70d72a166f196cb5fe03ec6

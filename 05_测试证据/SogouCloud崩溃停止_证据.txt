@@ -1,0 +1,12 @@
+# SogouCloud 崩溃报告（WER ReportArchive）证据
+# 目录: C:\ProgramData\Microsoft\Windows\WER\ReportArchive
+# 总数: 160
+
+# 最后一次崩溃时间（此后部署了合法退出桩，再无新增）:
+2026-09-16 00:44:04  AppCrash_SogouCloud.exe_9642322039fcb3d299538e57d5ebe342da38fa12_44898
+2026-09-16 00:44:05  AppCrash_SogouCloud.exe_9642322039fcb3d299538e57d5ebe342da38fa12_44898
+2026-09-16 01:31:43  AppCrash_SogouCloud.exe_9642322039fcb3d299538e57d5ebe342da38fa12_44898
+2026-09-16 01:33:49  AppCrash_SogouCloud.exe_9642322039fcb3d299538e57d5ebe342da38fa12_44898
+2026-09-16 01:35:40  AppCrash_SogouCloud.exe_9642322039fcb3d299538e57d5ebe342da38fa12_44898
+
+# 结论: 部署合法退出桩后，崩溃报告停止增长（此前约每 20~40 秒新增一个）。
