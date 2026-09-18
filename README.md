@@ -1,6 +1,6 @@
 # Sogou16-crack-cangshui
 
-搜狗输入法 16.8.0.4914 **原生断网绿化版**（cangshui 版）。
+搜狗输入法 16.8.0.4914 **原生断网绿化版**。
 
 > 作者博客：<https://cangshui.net>
 
