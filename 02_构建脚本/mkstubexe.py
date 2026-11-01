@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # 生成一个极小的合法 32 位 Windows EXE：入口即调用 ExitProcess(0)。
-# 用于替换 SogouCloud.exe —— 被 IME 拉起时立刻正常退出，不崩溃、不占资源。
+# 用于替换 SogouCloud.exe / SGBizLauncher.exe —— 被拉起时立刻正常退出，
+# 不崩溃、不占资源。
 # 布局（单节 .text，RVA 0x1000 / file 0x200）：
 #   0x000  code: push 0; call dword ptr [0x401100]; int3
 #   0x020  Import descriptor + null

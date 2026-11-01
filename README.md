@@ -15,6 +15,7 @@
 - **IME 核心保持官方字节**：`SogouPY.ime` / `SogouTSF.ime` / `SogouImeBroker.exe` /
   `SogouWin10Setup.exe` 共 6 个文件 SHA256 与官方安装包完全一致。
 - **干掉 SogouCloud 资源占用**：替换为 1KB 合法退出桩，被 IME 拉起即正常退出。
+- **停用商业推广启动器**：`SGBizLauncher.exe` 同样替换为合法退出桩，消除 `ConfigUpdate` 反复崩溃。
 - **离线皮肤/词库管理**：自带 Go 图形化工具，无需联网即可安装/切换/卸载皮肤与词库。
 - **不自动更新**、无遥测/云输入/SmartInfo 推送。
 
@@ -49,7 +50,7 @@
 │   ├── scrub5.py           去公网字面量
 │   ├── inject_block.py     .nblk 断网钩子注入器
 │   ├── inject.py           注入入口（5 模块）
-│   ├── mkstubexe.py        生成 1KB 合法空 EXE（SogouCloud 桩）
+│   ├── mkstubexe.py        生成 1KB 合法空 EXE（SogouCloud / SGBizLauncher 桩）
 │   ├── offline_hardening*.ps1  安装期/用户级硬化
 │   ├── sogou16-crack-cangshui.nsi  NSIS 打包脚本
 │   ├── assets/             不可推导的构建素材（皮肤控件 + 预编译工具 + NSIS 插件）

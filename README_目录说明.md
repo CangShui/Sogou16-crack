@@ -25,11 +25,11 @@
 
 | 文件 | 作用 |
 |---|---|
-| `build.py` | **一键构建**：pristine → payload（映射 + UPX + scrub + inject + SogouCloud 桩 + 复制 assets/ps1） |
+| `build.py` | **一键构建**：pristine → payload（映射 + UPX + scrub + inject + SogouCloud/SGBizLauncher 桩 + 复制 assets/ps1） |
 | `scrub5.py` | 去公网字面量（ASCII + UTF-16LE URL/域名，等长替换，跳过 IME 核心） |
 | `inject_block.py` | `.nblk` 断网钩子注入器（IAT 改写，位置无关） |
 | `inject.py` | 注入入口（仅 5 模块；用法 `inject.py <payload_root>`） |
-| `mkstubexe.py` | 生成 1KB 合法空 EXE（SogouCloud 合法退出桩，字节可复现） |
+| `mkstubexe.py` | 生成 1KB 合法空 EXE（SogouCloud / SGBizLauncher 合法退出桩，字节可复现） |
 | `stub_cloud_ret_rejected.py` | 历史留存（被否决的裸 ret 桩，勿用） |
 | `offline_hardening.ps1` | 安装期硬化（双视图注册表；无 hosts/防火墙） |
 | `ime_user_register.ps1` | 用户级 TSF 注册（RunOnce） |
@@ -38,7 +38,7 @@
 | `upx_tool/` | UPX 4.2.4（解压被压缩模块） |
 | `network_audit/` | 用户自用网络抓取工具包 |
 | `assets/Components/` | **不可推导的构建素材**：官方皮肤控件 `SogouFlash/` + `ComponentConfig.ini` |
-| `assets/Tools/` | 已编译好的 `搜狗皮肤词库工具.exe`（SHA256 `0ee4e839...`） |
+| `assets/Tools/` | 已编译好的 `搜狗皮肤词库工具.exe`（SHA256 `804d06d0...`） |
 | `assets/nsis-plugins/` | 原始构建所用的 NSIS 插件（nsDialogs/nsExec/System），用于尽量贴近字节 |
 
 ### `06_工具源码/`（自研工具源码）
@@ -50,7 +50,7 @@
 | `sogou_tool/编译说明.md` | 编译命令、产物哈希、稳定性要点 |
 
 > 编译产物 `搜狗皮肤词库工具.exe` 已打进安装包（解包后位于 `Tools\`，
-> SHA256 = `0ee4e839...`，1,936,896 字节），仓库不单独附带。
+> SHA256 = `804d06d0...`，2,321,408 字节），随 `02_构建脚本/assets/Tools/` 提供。
 >
 > UI 说明：含「离线皮肤/词库下载地址（https://pinyin.sogou.com/windows/）」与
 > 「作者博客（https://cangshui.net）」两个**可点击链接**（另有对应按钮），
@@ -74,7 +74,8 @@
 | 官方底包 `pinyin_guanwang_16.8.exe` | `cd889fa70a0bec77a5bb4f5c1fdff7a42674a29cc1fb4fc4cf5f2b645ef18fc2` | — |
 | 安装包 `Sogou16-crack-cangshui.exe` | `f4281ba9029d1f4b7a7aca7ab678b0cbe37e0edce70d72a166f196cb5fe03ec6` | 147,544,434 |
 | `SogouCloud.exe`（1KB 桩） | `2e81602cef9515b04b7e9c2a9bb8ba49de94e6528962c3d154f1e2f658914bbd` | 1,024 |
-| `Tools\搜狗皮肤词库工具.exe` | `0ee4e83977b6553b1666c7dc2ea450fa5206ce5930b7034d7e036f907389c49e` | 1,936,896 |
+| `SGBizLauncher.exe`（1KB 桩） | `2e81602cef9515b04b7e9c2a9bb8ba49de94e6528962c3d154f1e2f658914bbd` | 1,024 |
+| `Tools\搜狗皮肤词库工具.exe` | `804d06d0dc02ff8ce0983854d5deec00c9afd0dfe4e76f752bfd0b5255a9280b3` | 2,321,408 |
 | IME 核心 6 文件 | 见 `04_校验/IME核心文件官方SHA256.txt` | — |
 | 5 个注入模块 | 见 `04_校验/修改文件清单.txt` | — |
 

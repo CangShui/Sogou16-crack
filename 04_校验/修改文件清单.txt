@@ -23,16 +23,26 @@ SogouCloud.exe               STUB     da2acfc237e1e84cda 2e81602cef9515b04b
            WER 累积 AppCrash_SogouCloud，WerFault 反复启动导致鼠标周期性忙碌。
            该已否决方案见 02_构建脚本/stub_cloud_ret_rejected.py。）
 
+SGBizLauncher.exe            STUB     （官方签名文件，原哈希未收录） 2e81602cef9515b04b
+   说明：SGBizLauncher 是搜狗“商业业务启动器”（business_promotion），
+         负责节日弹窗、资讯窗口和商业推广，不参与拼音输入。
+         本机实测 2026-10-20～11-01 共 52 次崩溃（每天 4 次，约每 6 小时
+         一次 ConfigUpdate），WER 类型 BEX，异常 c0000005；崩溃进程均只写出
+         90 字节的 GetDeviceGradeInfo 日志。其加载的 shiply.dll/networkbase.dll
+         带有离线 .nblk 注入，且 SGBizLauncher 自身签名哈希已因 scrub 不匹配。
+         为消除反复崩溃和减少攻击面，替换为与 SogouCloud 相同的 1KB
+         合法退出桩（入口 ExitProcess(0)），被拉起即正常退出。
+
 ----------------------------------------------------------------------
 # 本版本新增文件（官方底包中不存在）
 #   Tools\搜狗皮肤词库工具.exe  = 自研离线皮肤/词库管理图形工具（纯 Win32，单文件）
 #   ime_user_register.ps1 / offline_hardening.ps1 / offline_hardening_user.ps1 = 离线硬化脚本
 #
-# Tools\搜狗皮肤词库工具.exe   NEW     -                  0ee4e83977b6553b
+# Tools\搜狗皮肤词库工具.exe   NEW     -                  804d06d0dc02ff8c
 #   说明：离线皮肤/词库管理；修复“打开一段时间自动未响应”；修正 scdreg 调用参数；
 #         切换皮肤改用官方激活通道；界面含离线下载地址 + 作者博客两个可点击链接。
-#   最终 SHA256 = 0ee4e83977b6553b1666c7dc2ea450fa5206ce5930b7034d7e036f907389c49e
-#   （已从 03_安装包 解包核对一致；大小 1,936,896 字节）
+#   最终 SHA256 = 804d06d0dc02ff8ce0983854d5deec00c9afd0dfe4e76f752bfd0b5255a9280b3
+#   （当前构建素材；大小 2,321,408 字节）
 
 ----------------------------------------------------------------------
 # 【图形工具卡死修复说明】
@@ -128,7 +138,7 @@ SogouCloud.exe               STUB     da2acfc237e1e84cda 2e81602cef9515b04b
 # 结果：用户点“切换选中皮肤”后无需再管任何弹窗，皮肤直接生效。
 #   实测：SkinRecent.ini 中目标皮肤 lastuse=当前时间、lastunuse=1970（即当前激活），
 #         旧皮肤被置 lastunuse；工具内存稳定 ~52MB。
-# 产物哈希：0ee4e83977b6553b1666c7dc2ea450fa5206ce5930b7034d7e036f907389c49e
+# 产物哈希：804d06d0dc02ff8ce0983854d5deec00c9afd0dfe4e76f752bfd0b5255a9280b3
 
 ----------------------------------------------------------------------
 # 【从根因消除“皮肤控件升级”弹窗】

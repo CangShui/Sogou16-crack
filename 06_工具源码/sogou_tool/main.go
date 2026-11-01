@@ -1,16 +1,19 @@
-﻿// 搜狗输入法 离线皮肤/词库管理工具（cangshui）
+// 搜狗输入法 离线皮肤/词库管理工具（cangshui）
 // 纯 Win32 API 图形界面，无第三方依赖，单文件 exe。
 //
 // 稳定性要点（修复“打开一段时间自动未响应”）：
-//   1. 进入 Win32 消息循环前必须 runtime.LockOSThread()：
-//      Go 会把消息循环 goroutine 在 OS 线程间迁移，而 Windows 要求消息泵
-//      固定在创建窗口的线程上；缺失会导致窗口随机“(未响应)”。
-//   2. 所有磁盘 IO / 子进程调用放到后台 goroutine，结果经 PostMessage 回投 UI。
-//   3. 跨线程数据用互斥锁保护的全局变量交接，不经 PostMessage 传堆指针
-//      （否则 GC 可能在 UI 线程读取前回收对象 → use-after-free）。
+//  1. 进入 Win32 消息循环前必须 runtime.LockOSThread()：
+//     Go 会把消息循环 goroutine 在 OS 线程间迁移，而 Windows 要求消息泵
+//     固定在创建窗口的线程上；缺失会导致窗口随机“(未响应)”。
+//  2. 所有磁盘 IO / 子进程调用放到后台 goroutine，结果经 PostMessage 回投 UI。
+//  3. 跨线程数据用互斥锁保护的全局变量交接，不经 PostMessage 传堆指针
+//     （否则 GC 可能在 UI 线程读取前回收对象 → use-after-free）。
 package main
 
 import (
+	"crypto/sha256"
+	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -25,43 +28,43 @@ import (
 )
 
 var (
-	user32           = syscall.NewLazyDLL("user32.dll")
-	kernel32         = syscall.NewLazyDLL("kernel32.dll")
-	comdlg32         = syscall.NewLazyDLL("comdlg32.dll")
-	shell32          = syscall.NewLazyDLL("shell32.dll")
-	gdi32            = syscall.NewLazyDLL("gdi32.dll")
-	pMessageBoxW     = user32.NewProc("MessageBoxW")
-	pCreateWindowExW = user32.NewProc("CreateWindowExW")
-	pDefWindowProcW  = user32.NewProc("DefWindowProcW")
-	pRegisterClassEx = user32.NewProc("RegisterClassExW")
-	pShowWindow      = user32.NewProc("ShowWindow")
-	pUpdateWindow    = user32.NewProc("UpdateWindow")
-	pGetMessageW     = user32.NewProc("GetMessageW")
-	pTranslateMsg    = user32.NewProc("TranslateMessage")
-	pDispatchMsg     = user32.NewProc("DispatchMessageW")
-	pPostQuitMessage = user32.NewProc("PostQuitMessage")
-	pPostMessageW    = user32.NewProc("PostMessageW")
-	pSendMessageW    = user32.NewProc("SendMessageW")
-	pSetWindowTextW  = user32.NewProc("SetWindowTextW")
-	pGetModuleHandle = kernel32.NewProc("GetModuleHandleW")
-	pGetOpenFileName = comdlg32.NewProc("GetOpenFileNameW")
-	pShellExecuteW   = shell32.NewProc("ShellExecuteW")
-	pGetSystemMetric = user32.NewProc("GetSystemMetrics")
-	pLoadCursorW     = user32.NewProc("LoadCursorW")
-	pEnumWindows     = user32.NewProc("EnumWindows")
+	user32            = syscall.NewLazyDLL("user32.dll")
+	kernel32          = syscall.NewLazyDLL("kernel32.dll")
+	comdlg32          = syscall.NewLazyDLL("comdlg32.dll")
+	shell32           = syscall.NewLazyDLL("shell32.dll")
+	gdi32             = syscall.NewLazyDLL("gdi32.dll")
+	pMessageBoxW      = user32.NewProc("MessageBoxW")
+	pCreateWindowExW  = user32.NewProc("CreateWindowExW")
+	pDefWindowProcW   = user32.NewProc("DefWindowProcW")
+	pRegisterClassEx  = user32.NewProc("RegisterClassExW")
+	pShowWindow       = user32.NewProc("ShowWindow")
+	pUpdateWindow     = user32.NewProc("UpdateWindow")
+	pGetMessageW      = user32.NewProc("GetMessageW")
+	pTranslateMsg     = user32.NewProc("TranslateMessage")
+	pDispatchMsg      = user32.NewProc("DispatchMessageW")
+	pPostQuitMessage  = user32.NewProc("PostQuitMessage")
+	pPostMessageW     = user32.NewProc("PostMessageW")
+	pSendMessageW     = user32.NewProc("SendMessageW")
+	pSetWindowTextW   = user32.NewProc("SetWindowTextW")
+	pGetModuleHandle  = kernel32.NewProc("GetModuleHandleW")
+	pGetOpenFileName  = comdlg32.NewProc("GetOpenFileNameW")
+	pShellExecuteW    = shell32.NewProc("ShellExecuteW")
+	pGetSystemMetric  = user32.NewProc("GetSystemMetrics")
+	pLoadCursorW      = user32.NewProc("LoadCursorW")
+	pEnumWindows      = user32.NewProc("EnumWindows")
 	pEnumChildWindows = user32.NewProc("EnumChildWindows")
-	pGetWindowTextW  = user32.NewProc("GetWindowTextW")
-	pGetClassNameW   = user32.NewProc("GetClassNameW")
-	pSetForegroundW  = user32.NewProc("SetForegroundWindow")
-	pSetWindowPos    = user32.NewProc("SetWindowPos")
-	pBringToTop      = user32.NewProc("BringWindowToTop")
-	pIsWindowVisible = user32.NewProc("IsWindowVisible")
-	pSendMsgTimeoutW = user32.NewProc("SendMessageTimeoutW")
-	pSetCursor       = user32.NewProc("SetCursor")
-	pGetDlgCtrlID    = user32.NewProc("GetDlgCtrlID")
-	pGetStockObject  = gdi32.NewProc("GetStockObject")
-	pSetTextColor    = gdi32.NewProc("SetTextColor")
-	pSetBkMode       = gdi32.NewProc("SetBkMode")
+	pGetWindowTextW   = user32.NewProc("GetWindowTextW")
+	pGetClassNameW    = user32.NewProc("GetClassNameW")
+	pSetForegroundW   = user32.NewProc("SetForegroundWindow")
+	pSetWindowPos     = user32.NewProc("SetWindowPos")
+	pBringToTop       = user32.NewProc("BringWindowToTop")
+	pIsWindowVisible  = user32.NewProc("IsWindowVisible")
+	pSendMsgTimeoutW  = user32.NewProc("SendMessageTimeoutW")
+	pSetCursor        = user32.NewProc("SetCursor")
+	pGetDlgCtrlID     = user32.NewProc("GetDlgCtrlID")
+	pGetStockObject   = gdi32.NewProc("GetStockObject")
+	pSetTextColor     = gdi32.NewProc("SetTextColor")
+	pSetBkMode        = gdi32.NewProc("SetBkMode")
 )
 
 func ctrlID(h uintptr) int {
@@ -73,7 +76,7 @@ func ctrlID(h uintptr) int {
 }
 
 const (
-	BM_CLICK       = 0x00F5
+	BM_CLICK         = 0x00F5
 	SMTO_ABORTIFHUNG = 0x0002
 )
 
@@ -219,16 +222,42 @@ func allSkinDir() string { return filepath.Join(localLowDir(), "AllSkin") }
 func scdUserDir() string { return filepath.Join(localLowDir(), "scd") }
 func scdProgDir() string { return filepath.Join(INSTALL_DIR, "scd") }
 
+// 工具自己的持久化目录。它与 SogouPY 分开保存，安装/卸载搜狗或输入法
+// 清理本地皮肤缓存时不会碰到这里，可作为导入资产的恢复来源。
+func toolDataDir() string {
+	base := os.Getenv("LOCALAPPDATA")
+	if base == "" {
+		base = filepath.Join(os.Getenv("USERPROFILE"), "AppData", "Local")
+	}
+	return filepath.Join(base, "Sogou16-crack")
+}
+func skinBackupDir() string { return filepath.Join(toolDataDir(), "Backup", "Skins") }
+func dictBackupDir() string { return filepath.Join(toolDataDir(), "Backup", "Dictionaries") }
+func toolLogPath() string   { return filepath.Join(toolDataDir(), "logs", "tool.log") }
+
+var logMu sync.Mutex
+
+func logf(format string, args ...any) {
+	logMu.Lock()
+	defer logMu.Unlock()
+	_ = os.MkdirAll(filepath.Dir(toolLogPath()), 0755)
+	f, err := os.OpenFile(toolLogPath(), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+	_, _ = fmt.Fprintf(f, "%s  %s\n", time.Now().Format("2006-01-02 15:04:05"), fmt.Sprintf(format, args...))
+}
+
 // runSGTool 异步启动 SGTool（GUI 程序，不能同步等待）
-func runSGTool(args ...string) {
-	go func() {
-		cmd := exec.Command(SGTOOL, args...)
-		cmd.Dir = INSTALL_DIR
-		if err := cmd.Start(); err != nil {
-			return
-		}
-		go cmd.Wait()
-	}()
+func runSGTool(args ...string) error {
+	cmd := exec.Command(SGTOOL, args...)
+	cmd.Dir = INSTALL_DIR
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	go cmd.Wait()
+	return nil
 }
 
 // runSGToolWait 同步等待 SGTool 命令结束（用于 scdreg 这类快速命令，需拿退出码）
@@ -287,6 +316,247 @@ func scanLists() {
 	sort.Strings(skins)
 	sort.Strings(dicts)
 	postRefresh(skins, dicts)
+}
+
+func samePath(a, b string) bool {
+	aa, errA := filepath.Abs(a)
+	bb, errB := filepath.Abs(b)
+	if errA != nil || errB != nil {
+		return strings.EqualFold(filepath.Clean(a), filepath.Clean(b))
+	}
+	return strings.EqualFold(filepath.Clean(aa), filepath.Clean(bb))
+}
+
+func fileDigest(path string) (string, int64, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", 0, err
+	}
+	defer f.Close()
+	h := sha256.New()
+	n, err := io.Copy(h, f)
+	if err != nil {
+		return "", 0, err
+	}
+	return fmt.Sprintf("%x", h.Sum(nil)), n, nil
+}
+
+// copyFileVerified 复制文件并核对目标大小，避免出现 UI 显示成功、实际
+// 只留下 0 字节或部分文件的假成功。
+func copyFileVerified(src, dst string) (string, int64, error) {
+	if samePath(src, dst) {
+		return fileDigest(dst)
+	}
+
+	in, err := os.Open(src)
+	if err != nil {
+		return "", 0, err
+	}
+	defer in.Close()
+	st, err := in.Stat()
+	if err != nil {
+		return "", 0, err
+	}
+	if st.IsDir() {
+		return "", 0, fmt.Errorf("源路径是目录，不是文件")
+	}
+	if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
+		return "", 0, err
+	}
+
+	out, err := os.OpenFile(dst, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
+	if err != nil {
+		return "", 0, err
+	}
+	h := sha256.New()
+	n, copyErr := io.Copy(io.MultiWriter(out, h), in)
+	syncErr := out.Sync()
+	closeErr := out.Close()
+	if copyErr != nil {
+		return "", 0, copyErr
+	}
+	if syncErr != nil {
+		return "", 0, syncErr
+	}
+	if closeErr != nil {
+		return "", 0, closeErr
+	}
+	if n != st.Size() {
+		return "", 0, fmt.Errorf("复制不完整：源 %d 字节，目标 %d 字节", st.Size(), n)
+	}
+	dstInfo, err := os.Stat(dst)
+	if err != nil {
+		return "", 0, err
+	}
+	if dstInfo.Size() != st.Size() {
+		return "", 0, fmt.Errorf("目标大小校验失败：期望 %d，实际 %d", st.Size(), dstInfo.Size())
+	}
+	return fmt.Sprintf("%x", h.Sum(nil)), n, nil
+}
+
+// backupFileIfMissing 用于启动时给已有资产建立首份备份，不覆盖旧备份。
+func backupFileIfMissing(src, dstDir, dstName string) (string, error) {
+	dst := filepath.Join(dstDir, dstName)
+	if st, err := os.Stat(dst); err == nil && st.Size() > 0 {
+		return dst, nil
+	}
+	hash, size, err := copyFileVerified(src, dst)
+	if err != nil {
+		return "", err
+	}
+	logf("backup created: src=%s dst=%s bytes=%d sha256=%s", src, dst, size, hash)
+	return dst, nil
+}
+
+// ensureBackupFile 用于成功安装/卸载前刷新备份，让备份跟当前资产保持一致。
+func ensureBackupFile(src, dstDir, dstName string) (string, error) {
+	dst := filepath.Join(dstDir, dstName)
+	hash, size, err := copyFileVerified(src, dst)
+	if err != nil {
+		return "", err
+	}
+	logf("backup refreshed: src=%s dst=%s bytes=%d sha256=%s", src, dst, size, hash)
+	return dst, nil
+}
+
+func seedBackupFiles() {
+	if err := os.MkdirAll(skinBackupDir(), 0755); err != nil {
+		logf("seed backup: create skin backup dir failed: %v", err)
+		return
+	}
+	if err := os.MkdirAll(dictBackupDir(), 0755); err != nil {
+		logf("seed backup: create dict backup dir failed: %v", err)
+		return
+	}
+
+	for _, e := range mustReadDir(allSkinDir()) {
+		if e.IsDir() || !strings.EqualFold(filepath.Ext(e.Name()), ".ssf") {
+			continue
+		}
+		src := filepath.Join(allSkinDir(), e.Name())
+		if _, err := backupFileIfMissing(src, skinBackupDir(), e.Name()); err != nil {
+			logf("seed skin backup failed: %s: %v", src, err)
+		}
+	}
+	for _, dir := range []string{scdUserDir()} {
+		for _, e := range mustReadDir(dir) {
+			if e.IsDir() || !strings.EqualFold(filepath.Ext(e.Name()), ".scel") {
+				continue
+			}
+			src := filepath.Join(dir, e.Name())
+			if _, err := backupFileIfMissing(src, dictBackupDir(), e.Name()); err != nil {
+				logf("seed dict backup failed: %s: %v", src, err)
+			}
+		}
+	}
+}
+
+func mustReadDir(dir string) []os.DirEntry {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil
+	}
+	return entries
+}
+
+func findMatchingFile(dirs []string, src, ext string) string {
+	srcHash, srcSize, err := fileDigest(src)
+	if err != nil {
+		return ""
+	}
+	for _, dir := range dirs {
+		for _, e := range mustReadDir(dir) {
+			if e.IsDir() || !strings.EqualFold(filepath.Ext(e.Name()), ext) {
+				continue
+			}
+			p := filepath.Join(dir, e.Name())
+			st, err := e.Info()
+			if err != nil || st.Size() != srcSize {
+				continue
+			}
+			hash, _, err := fileDigest(p)
+			if err == nil && strings.EqualFold(hash, srcHash) {
+				return p
+			}
+		}
+	}
+	return ""
+}
+
+func skinRegistered(name string) bool {
+	b, err := os.ReadFile(filepath.Join(localLowDir(), "SkinRecent.ini"))
+	if err != nil {
+		return false
+	}
+	for _, line := range strings.Split(string(b), "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "name=") && strings.TrimPrefix(line, "name=") == name {
+			return true
+		}
+	}
+	return false
+}
+
+func waitForSkinRegistered(name string, timeout time.Duration) bool {
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		if skinRegistered(name) {
+			return true
+		}
+		time.Sleep(250 * time.Millisecond)
+	}
+	return skinRegistered(name)
+}
+
+func shouldRestore(path string) bool {
+	st, err := os.Stat(path)
+	return os.IsNotExist(err) || (err == nil && st.Size() == 0)
+}
+
+func restoreAssetsFromBackup() {
+	skins, dicts := 0, 0
+	if err := os.MkdirAll(allSkinDir(), 0755); err == nil {
+		for _, e := range mustReadDir(skinBackupDir()) {
+			if e.IsDir() || !strings.EqualFold(filepath.Ext(e.Name()), ".ssf") {
+				continue
+			}
+			src := filepath.Join(skinBackupDir(), e.Name())
+			dst := filepath.Join(allSkinDir(), e.Name())
+			if !shouldRestore(dst) {
+				continue
+			}
+			if _, _, err := copyFileVerified(src, dst); err != nil {
+				logf("restore skin failed: src=%s dst=%s: %v", src, dst, err)
+			} else {
+				skins++
+				logf("restore skin ok: src=%s dst=%s", src, dst)
+			}
+		}
+	}
+	if err := os.MkdirAll(scdUserDir(), 0755); err == nil {
+		for _, e := range mustReadDir(dictBackupDir()) {
+			if e.IsDir() || !strings.EqualFold(filepath.Ext(e.Name()), ".scel") {
+				continue
+			}
+			src := filepath.Join(dictBackupDir(), e.Name())
+			dst := filepath.Join(scdUserDir(), e.Name())
+			if !shouldRestore(dst) {
+				continue
+			}
+			if _, _, err := copyFileVerified(src, dst); err != nil {
+				logf("restore dict failed: src=%s dst=%s: %v", src, dst, err)
+			} else {
+				dicts++
+				logf("restore dict ok: src=%s dst=%s", src, dst)
+			}
+		}
+	}
+	if dicts > 0 {
+		_ = runSGToolWait("--appid=scdreg", "-update")
+	}
+	logf("restore finished: skins=%d dicts=%d", skins, dicts)
+	postStatus(fmt.Sprintf("已从备份恢复：皮肤 %d 个，词库 %d 个", skins, dicts))
+	scanLists()
 }
 
 func listSel(h uintptr) string {
@@ -500,7 +770,10 @@ func runUI() {
 	pShowWindow.Call(hMain, SW_SHOW)
 	pUpdateWindow.Call(hMain)
 
-	go scanLists()
+	go func() {
+		seedBackupFiles()
+		scanLists()
+	}()
 
 	var msg MSG
 	for {
@@ -572,6 +845,7 @@ func createChildren(hwnd uintptr) {
 	hDictList = lst(20, 220, 400, 150)
 	btn("安装词库(.scel)", 2001, 435, 220, 140, 28)
 	btn("卸载选中词库", 2002, 435, 256, 140, 28)
+	btn("从备份恢复", 3008, 435, 292, 140, 28)
 
 	btn("刷新列表", 3001, 20, 384, 110, 28)
 	btn("打开皮肤目录", 3002, 140, 384, 110, 28)
@@ -609,6 +883,13 @@ const helpText = `使用说明
         导入后会自动重建索引。若打不出新词，请重启一下输入法
         （Ctrl+空格 切一下中/英，或注销重新登录）再试。
   卸载：选中后点“卸载选中词库”。
+
+【防丢失备份】
+  工具会自动把皮肤和词库备份到：
+  %LOCALAPPDATA%\Sogou16-crack\Backup
+  如果重启后列表中的资产缺失，点“从备份恢复”。
+  详细操作日志：
+  %LOCALAPPDATA%\Sogou16-crack\logs\tool.log
 
 【文件从哪来】
   断网环境无法用“皮肤/词库商城”，请先到官网页面下载
@@ -660,19 +941,47 @@ func wndProc(hwnd uintptr, msg uint32, wparam, lparam uintptr) uintptr {
 				return 0
 			}
 			base := filepath.Base(f)
+			if !strings.EqualFold(filepath.Ext(base), ".ssf") {
+				msgbox("提示", "请选择 .ssf 皮肤文件。", 0x40)
+				return 0
+			}
 			name := strings.TrimSuffix(base, filepath.Ext(base))
 			postStatus("正在安装皮肤：" + base + " ...")
 			go func() {
-				os.MkdirAll(allSkinDir(), 0755)
-				if !strings.HasPrefix(f, allSkinDir()) {
-					_ = copyFile(f, filepath.Join(allSkinDir(), base))
+				if err := os.MkdirAll(allSkinDir(), 0755); err != nil {
+					logf("install skin: create dir failed: %v", err)
+					postStatus("安装失败：无法创建皮肤目录")
+					return
 				}
+				dest := filepath.Join(allSkinDir(), base)
+				hash, size, err := copyFileVerified(f, dest)
+				if err != nil {
+					logf("install skin: copy failed: src=%s dst=%s: %v", f, dest, err)
+					postStatus("安装失败：皮肤文件未能写入 AllSkin")
+					return
+				}
+				logf("install skin: file verified: src=%s dst=%s bytes=%d sha256=%s", f, dest, size, hash)
+				if _, err := ensureBackupFile(dest, skinBackupDir(), base); err != nil {
+					logf("install skin: backup failed: %s: %v", dest, err)
+				}
+
 				// skinreg -install 会弹“确定要安装皮肤”确认框（官方行为，无法静默）
-				runSGTool("-line", "0", "-border", "--appid=skinreg", "-install", f)
-				// 关键：把确认窗提到最前，否则会被本工具窗口挡住，用户点不到“确定”
+				// 必须传 AllSkin 内的持久路径，不能传用户选择的临时/下载路径。
 				go watchdogSkinConfirm(25 * time.Second)
-				time.Sleep(1500 * time.Millisecond)
-				postStatus("已安装并应用皮肤：" + name + "（确认框已自动点“确定”）")
+				if err := runSGTool("-line", "0", "-border", "--appid=skinreg", "-install", dest); err != nil {
+					logf("install skin: start SGTool failed: %v", err)
+					postStatus("皮肤文件已保存，但无法启动 SGTool 注册")
+					scanLists()
+					return
+				}
+				registered := waitForSkinRegistered(name, 12*time.Second)
+				if registered {
+					logf("install skin: registration confirmed: name=%s dest=%s", name, dest)
+					postStatus("已安装并应用皮肤：" + name)
+				} else {
+					logf("install skin: registration not confirmed: name=%s dest=%s", name, dest)
+					postStatus("皮肤文件已保存，但注册未确认；请稍后点“切换选中皮肤”")
+				}
 				scanLists()
 			}()
 
@@ -685,17 +994,30 @@ func wndProc(hwnd uintptr, msg uint32, wparam, lparam uintptr) uintptr {
 			postStatus("正在切换皮肤：" + name + " ...")
 			go func() {
 				ssf := filepath.Join(allSkinDir(), name+".ssf")
+				if _, err := os.Stat(ssf); err != nil {
+					logf("switch skin: missing file: %s: %v", ssf, err)
+					postStatus("切换失败：皮肤文件不存在")
+					return
+				}
+				if _, err := backupFileIfMissing(ssf, skinBackupDir(), name+".ssf"); err != nil {
+					logf("switch skin: backup failed: %s: %v", ssf, err)
+				}
 				// 经实测：`skinRenderUpdate -skinname=` 单独调用不会真正切换
 				// （SkinRecent.ini 不更新）。而 `skinreg -install <已装皮肤.ssf>`
 				// 会把该皮肤置为当前使用（写 lastuse/usecnt）——这正是官方
 				// “使用皮肤”的效果。故切换 = 对已装皮肤重新执行 install。
-				runSGTool("-line", "0", "-border", "--appid=skinreg", "-install", ssf)
 				// 关键：把“确定要安装皮肤”确认窗提到最前（否则被主窗口挡住点不到）
 				// 放后台轮询，不阻塞后续步骤
 				go watchdogSkinConfirm(25 * time.Second)
+				if err := runSGTool("-line", "0", "-border", "--appid=skinreg", "-install", ssf); err != nil {
+					logf("switch skin: start SGTool failed: %v", err)
+					postStatus("切换失败：无法启动 SGTool")
+					return
+				}
 				time.Sleep(1200 * time.Millisecond)
 				// 再触发一次渲染刷新
 				_ = runSGToolWait("-line", "0", "-border", "--appid=skinRenderUpdate", "-skinname="+name)
+				logf("switch skin: requested: name=%s file=%s", name, ssf)
 				postStatus("已切换皮肤：" + name + "（确认框已自动点“确定”）")
 			}()
 
@@ -707,10 +1029,23 @@ func wndProc(hwnd uintptr, msg uint32, wparam, lparam uintptr) uintptr {
 			}
 			if msgboxYesNo("确认卸载皮肤 “" + name + "” ？") {
 				go func() {
-					runSGTool("-line", "0", "-border", "--appid=skindelete", name)
+					ssf := filepath.Join(allSkinDir(), name+".ssf")
+					if _, err := os.Stat(ssf); err == nil {
+						if _, err := ensureBackupFile(ssf, skinBackupDir(), name+".ssf"); err != nil {
+							logf("delete skin: backup failed: %s: %v", ssf, err)
+						}
+					}
+					if err := runSGTool("-line", "0", "-border", "--appid=skindelete", name); err != nil {
+						logf("delete skin: start SGTool failed: %v", err)
+					}
 					time.Sleep(800 * time.Millisecond)
-					os.Remove(filepath.Join(allSkinDir(), name+".ssf"))
-					postStatus("已卸载皮肤：" + name)
+					if err := os.Remove(ssf); err != nil && !os.IsNotExist(err) {
+						logf("delete skin: remove failed: %s: %v", ssf, err)
+						postStatus("皮肤卸载不完整：文件删除失败")
+					} else {
+						logf("delete skin: ok: name=%s", name)
+						postStatus("已卸载皮肤：" + name)
+					}
 					scanLists()
 				}()
 			}
@@ -721,19 +1056,51 @@ func wndProc(hwnd uintptr, msg uint32, wparam, lparam uintptr) uintptr {
 				return 0
 			}
 			base := filepath.Base(f)
+			if !strings.EqualFold(filepath.Ext(base), ".scel") {
+				msgbox("提示", "请选择 .scel 词库文件。", 0x40)
+				return 0
+			}
 			postStatus("正在导入词库：" + base + " ...")
 			go func() {
 				// 重要：scdreg 不能带 `-line 0 -border`（实测该前缀会让它直接失败，
 				// 返回 1 且不注册）。scdreg 只认 `--appid=scdreg -add "<scel>" -s`。
 				// 只交给 scdreg：由它自行部署到用户 scd 目录，不再手动复制到
 				// 程序 scd 目录（否则同一词库会被算作两条）。
-				err := runSGToolWait("--appid=scdreg", "-add", f, "-s")
+				addErr := runSGToolWait("--appid=scdreg", "-add", f, "-s")
 				// 关键：重建词库索引，否则新词库不生效
 				_ = runSGToolWait("--appid=scdreg", "-update")
-				if err == nil {
-					postStatus("词库已导入并重建索引：" + base + "。若打不出新词，请重启一下输入法（切换中/英或注销重登）。")
+
+				// 不只信进程退出码：必须真的在用户/程序 scd 目录找到同内容文件。
+				dest := findMatchingFile([]string{scdUserDir(), scdProgDir()}, f, ".scel")
+				if dest == "" {
+					// scdreg 没有把文件部署出来时，使用可持久化的文件部署作为兜底，
+					// 再重建一次索引。这样重启后至少源文件仍在用户 scd 目录。
+					if err := os.MkdirAll(scdUserDir(), 0755); err == nil {
+						fallback := filepath.Join(scdUserDir(), base)
+						if _, _, err := copyFileVerified(f, fallback); err == nil {
+							logf("install dict: scdreg did not deploy, fallback copied: %s", fallback)
+							_ = runSGToolWait("--appid=scdreg", "-update")
+							dest = findMatchingFile([]string{scdUserDir(), scdProgDir()}, f, ".scel")
+						} else {
+							logf("install dict: fallback copy failed: %s: %v", fallback, err)
+						}
+					}
+				}
+				if dest == "" {
+					logf("install dict: NOT VERIFIED: src=%s scdreg_err=%v", f, addErr)
+					postStatus("词库导入失败：未在 scd 目录找到落盘文件")
+					scanLists()
+					return
+				}
+				if _, err := ensureBackupFile(dest, dictBackupDir(), filepath.Base(dest)); err != nil {
+					logf("install dict: destination backup failed: %s: %v", dest, err)
+				}
+				hash, size, _ := fileDigest(dest)
+				logf("install dict: verified: src=%s dest=%s bytes=%d sha256=%s scdreg_err=%v", f, dest, size, hash, addErr)
+				if addErr != nil {
+					postStatus("词库文件已持久落盘，但 scdreg 返回错误；请重启输入法验证：" + base)
 				} else {
-					postStatus("词库导入可能失败：" + base)
+					postStatus("词库已导入并重建索引：" + base + "。若打不出新词，请重启一下输入法（切换中/英或注销重登）。")
 				}
 				scanLists()
 			}()
@@ -746,9 +1113,18 @@ func wndProc(hwnd uintptr, msg uint32, wparam, lparam uintptr) uintptr {
 			}
 			if msgboxYesNo("确认卸载词库 “" + name + "” ？") {
 				go func() {
-					os.Remove(filepath.Join(scdUserDir(), name))
-					os.Remove(filepath.Join(scdProgDir(), name))
+					for _, p := range []string{filepath.Join(scdUserDir(), name), filepath.Join(scdProgDir(), name)} {
+						if _, err := os.Stat(p); err == nil {
+							if _, err := ensureBackupFile(p, dictBackupDir(), name); err != nil {
+								logf("delete dict: backup failed: %s: %v", p, err)
+							}
+						}
+						if err := os.Remove(p); err != nil && !os.IsNotExist(err) {
+							logf("delete dict: remove failed: %s: %v", p, err)
+						}
+					}
 					_ = runSGToolWait("--appid=scdreg", "-update")
+					logf("delete dict: ok: name=%s", name)
 					postStatus("已卸载词库并重建索引：" + name)
 					scanLists()
 				}()
@@ -772,6 +1148,10 @@ func wndProc(hwnd uintptr, msg uint32, wparam, lparam uintptr) uintptr {
 
 		case 3007:
 			go openURL(BLOG_URL)
+
+		case 3008:
+			postStatus("正在从备份恢复缺失资产 ...")
+			go restoreAssetsFromBackup()
 
 		case 4001: // 点击下载地址链接
 			go openURL(DOWNLOAD_URL)
@@ -815,12 +1195,4 @@ func wndProc(hwnd uintptr, msg uint32, wparam, lparam uintptr) uintptr {
 	}
 	r, _, _ := pDefWindowProcW.Call(hwnd, uintptr(msg), wparam, lparam)
 	return r
-}
-
-func copyFile(src, dst string) error {
-	b, err := os.ReadFile(src)
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(dst, b, 0644)
 }

@@ -25,7 +25,8 @@ Steps:
     2) UPX-decompress sgutil.dll / SogouToolkits.exe / SogouToolkitsCore.dll
     3) scrub5.py patch <payload>     (strip public host literals, skip IME core)
     4) inject.py <payload>           (inject .nblk into 5 modules)
-    5) mkstubexe.py SogouCloud.exe   (replace with 1KB legal-exit stub)
+    5) mkstubexe.py SogouCloud.exe SGBizLauncher.exe
+       (replace with 1KB legal-exit stubs)
     6) Copy assets (Components / Tools) and the 3 hardening ps1 to payload root
 
 Mapping (pristine -> payload):
@@ -66,6 +67,7 @@ PS1_FILES = ["ime_user_register.ps1", "offline_hardening.ps1",
              "offline_hardening_user.ps1"]
 UPX_MODULES = ["sgutil.dll", "SogouToolkits.exe", "SogouToolkitsCore.dll"]
 STUB_SHA256 = "2e81602cef9515b04b7e9c2a9bb8ba49de94e6528962c3d154f1e2f658914bbd"
+STUB_FILES = ("SogouCloud.exe", "SGBizLauncher.exe")
 
 
 def log(*a):
@@ -151,9 +153,10 @@ def main():
     run([sys.executable, os.path.join(HERE, "scrub5.py"), "patch", out])
     # 4) inject
     run([sys.executable, os.path.join(HERE, "inject.py"), out])
-    # 5) SogouCloud stub
-    run([sys.executable, os.path.join(HERE, "mkstubexe.py"),
-         os.path.join(vd, "SogouCloud.exe")])
+    # 5) legal-exit stubs
+    for name in STUB_FILES:
+        run([sys.executable, os.path.join(HERE, "mkstubexe.py"),
+             os.path.join(vd, name)])
 
     # 6) assets: Components (overwrite) + Tools
     copy_tree(os.path.join(a.assets, "Components"),
@@ -168,11 +171,12 @@ def main():
     log("ps1 copied to payload root")
 
     # 8) self-check
-    sc = os.path.join(vd, "SogouCloud.exe")
-    got = sha256(sc)
-    log("SogouCloud.exe =", got, os.path.getsize(sc), "bytes")
-    if got != STUB_SHA256:
-        raise SystemExit("SogouCloud stub hash mismatch!")
+    for name in STUB_FILES:
+        stub = os.path.join(vd, name)
+        got = sha256(stub)
+        log(name, "=", got, os.path.getsize(stub), "bytes")
+        if got != STUB_SHA256:
+            raise SystemExit(name + " stub hash mismatch!")
     tools_dir = os.path.join(out, "tools")
     names = os.listdir(tools_dir) if os.path.isdir(tools_dir) else []
     if names:

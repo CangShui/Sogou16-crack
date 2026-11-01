@@ -59,6 +59,7 @@ Section "Install" SecMain
   nsExec::ExecToLog 'taskkill /F /IM PinyinUp.exe'
   nsExec::ExecToLog 'taskkill /F /IM SogouWizard.exe'
   nsExec::ExecToLog 'taskkill /F /IM 搜狗皮肤词库工具.exe'
+  nsExec::ExecToLog 'taskkill /F /IM SGBizLauncher.exe'
   nsExec::ExecToLog 'taskkill /F /IM 搜狗提示拦截.exe'
   Sleep 800
 
